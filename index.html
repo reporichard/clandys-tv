@@ -187,7 +187,7 @@ function uploadVideo(){
   formData.append('video', file);
 
   const xhr = new XMLHttpRequest();
-  xhr.open('POST', 'http://localhost:3000/upload', true);
+  xhr.open('POST', '/upload', true);
 
   xhr.upload.onprogress = function(e){
     if(e.lengthComputable){
@@ -348,3 +348,4 @@ notesArea.addEventListener("input",()=>{
 </body>
 
 </html>
+
