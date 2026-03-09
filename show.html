@@ -68,7 +68,7 @@ async function fetchPlaylist(){
 
   try{
 
-    const res = await fetch("http://localhost:3000/playlist")
+    const res = await fetch("/playlist")
     const data = await res.json()
 
     const oldLength = playlist.length
@@ -142,7 +142,7 @@ setInterval(()=>{
 
   if(playerVideo.src){
 
-    fetch("http://localhost:3000/now-playing",{
+    fetch("/now-playing",{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
      body:JSON.stringify({
@@ -162,7 +162,7 @@ const clientId = Math.random().toString(36).substring(2,9)
 
 function ping(){
 
-  fetch("http://localhost:3000/ping",{
+  fetch("/ping",{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({clientId})
@@ -185,4 +185,5 @@ fetchPlaylist()
 </script>
 
 </body>
+
 </html>
