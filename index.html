@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Clandys TV Management</title>
+<style>
+body{font-family: Arial; background:#f2f2f2; margin:0; padding:20px;}
+h1{text-align:center; color:#333;}
+.container{max-width:700px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
+input[type=file]{width:100%; padding:10px; margin-bottom:15px;}
+button{padding:6px 10px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer;}
+button:hover{background:#0056b3;}
+#status{margin-top:10px; text-align:center; font-weight:bold;}
+#progressContainer{margin-top:15px; background:#eee; border-radius:5px; overflow:hidden; height:25px; display:none;}
+#progressBar{height:100%; width:0%; background:#28a745; text-align:center; color:white; line-height:25px; font-weight:bold;}
+#playlistBox{margin-top:20px; background:#f9f9f9; border:1px solid #ccc; padding:10px; border-radius:8px;}
+#playlistBox ul{list-style:none; padding:0; margin:0;}
+#playlistBox li{display:flex; justify-content:space-between; align-items:center; padding:6px 10px; border-bottom:1px solid #ddd;}
+#playlistBox li:last-child{border-bottom:none;}
+.removeBtn{background:red; color:white; border:none; border-radius:4px; cursor:pointer; padding:2px 6px; margin-left:5px;}
+.dashboard{
+  display:flex;
+  gap:20px;
+  align-items:flex-start;   /* penting */
+}
+
+.container{
+  width:40%;
+  max-width:none;
+}
+
+#tvMonitorContainer{
+  background:#111;
+  padding:15px;
+  border-radius:10px;
+
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(220px,1fr));
+  gap:15px;
+
+  height:auto;
+}
+
+.tvBox{
+  background:black;
+  border-radius:8px;
+  overflow:hidden;
+  aspect-ratio:16/9;
+}
+
+.tvBox video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+#notesBox{
+  margin-top:20px;
+  background:#f9f9f9;
+  border:1px solid #ccc;
+  padding:10px;
+  border-radius:8px;
+}
+
+#notesArea{
+  width:100%;
+  height:120px;
+  resize:vertical;
+  padding:10px;
+  font-family:monospace;
+  border-radius:6px;
+  border:1px solid #ccc;
+}
+
+.appFooter{
+  margin-top:40px;
+  padding:20px;
+  text-align:center;
+  border-top:1px solid #e5e5e5;
+  color:#666;
+  font-size:13px;
+}
+
+.footerTitle{
+  font-weight:600;
+  margin-bottom:4px;
+}
+
+.footerVersion{
+  font-size:12px;
+  color:#888;
+}
+
+.footerCopyright{
+  font-size:12px;
+  margin-top:3px;
+}
+</style>
+</head>
+<body>
+
+<h1>Clandys TV Management</h1>
+
+<div class="dashboard">
+
+<div class="container">
+  <input type="file" id="videoFile" accept="video/*">
+  <button onclick="uploadVideo()">Upload Video</button>
+  <div id="status"></div>
+
+  <div id="progressContainer">
+    <div id="progressBar">0%</div>
+  </div>
+
+  <div id="playlistBox">
+    <h3>Playlist</h3>
+    <ul id="playlist"></ul>
+  </div>
+<div id="notesBox">
+  <h3>Catatan</h3>
+  <textarea id="notesArea" placeholder="Tulis catatan atau planning di sini..."></textarea>
+</div>
+</div>
+
+
+
+<!-- MONITOR TV -->
+<div id="tvMonitorContainer">
+  
+</div>
+</div>
+
+<script>
+async function fetchPlaylist(){
+  const res = await fetch('http://localhost:3000/playlist');
+  const data = await res.json();
+  return data;
+}
+
+async function renderPlaylist(){
+  const ul = document.getElementById('playlist');
+  ul.innerHTML = '';
+
+  const playlist = await fetchPlaylist();
+
+  playlist.forEach((video,index)=>{
+
+    const li = document.createElement('li');
+
+    li.innerHTML = `
+      <span>${video}</span>
+      <div>
+        <button class="removeBtn" onclick="confirmRemove('${video}')">X</button>
+        <button onclick="openMonitor()">Monitor</button>
+      </div>
+    `;
+
+    ul.appendChild(li);
+
+  });
+}
+// Konfirmasi sebelum hapus
+async function confirmRemove(filename){
+  if(!confirm(`Apakah kamu yakin ingin menghapus video '${filename}'?`)) return;
+
+  try{
+    const res = await fetch(`http://localhost:3000/delete/${filename}`, { method:'DELETE' });
+    const data = await res.json();
+    alert(data.message); // beri feedback
+    renderPlaylist();
+  }catch(err){
+    alert('Gagal menghapus video!');
+    console.error(err);
+  }
+}
+// Upload video dengan progress bar
+function uploadVideo(){
+  const fileInput = document.getElementById('videoFile');
+  const file = fileInput.files[0];
+  const status = document.getElementById('status');
+  const progressContainer = document.getElementById('progressContainer');
+  const progressBar = document.getElementById('progressBar');
+
+  if(!file){ status.innerText="Pilih video dulu!"; status.style.color="red"; return; }
+
+  const formData = new FormData();
+  formData.append('video', file);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', 'http://localhost:3000/upload', true);
+
+  xhr.upload.onprogress = function(e){
+    if(e.lengthComputable){
+      const percent = Math.round((e.loaded / e.total) * 100);
+      progressContainer.style.display = 'block';
+      progressBar.style.width = percent + '%';
+      progressBar.innerText = `${percent}% (${(e.loaded/1024/1024).toFixed(2)} MB / ${(e.total/1024/1024).toFixed(2)} MB)`;
+    }
+  }
+
+  xhr.onload = function(){
+    if(xhr.status === 200){
+      status.innerText = "Upload berhasil: " + file.name;
+      status.style.color = "green";
+      fileInput.value = '';
+      renderPlaylist();
+      setTimeout(()=>{ progressContainer.style.display='none'; progressBar.style.width='0%'; progressBar.innerText='0%'; }, 2000);
+    } else {
+      status.innerText = "Upload gagal!";
+      status.style.color = "red";
+    }
+  }
+
+  xhr.send(formData);
+}
+
+// Load playlist awal
+renderPlaylist();
+
+//tvcheck
+
+const monitorBtn = document.querySelectorAll('.monitorBtn');
+const tvMonitor = document.getElementById('tvMonitor');
+const monitorVideo = document.getElementById('monitorVideo');
+const tvStatus = document.getElementById('tvStatus');
+
+monitorBtn.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(tvMonitor.style.display==='none'){
+      tvMonitor.style.display='block';
+      updateMonitor();
+      updateTVStatus();
+    }else{
+      tvMonitor.style.display='none';
+    }
+  });
+});
+
+// Update video yang sedang play di Show
+async function updateMonitor(){
+
+  try{
+
+    const res = await fetch('http://localhost:3000/tv-players')
+    const tvs = await res.json()
+
+    const container = document.getElementById("tvMonitorContainer")
+
+    container.innerHTML=""
+
+    const ids = Object.keys(tvs)
+
+    if(ids.length===0){
+
+      container.innerHTML = `
+      <div style="background:black;color:white;padding:10px">
+      TV OFFLINE (0)
+      </div>`
+
+      return
+    }
+
+    ids.forEach(id=>{
+
+      const tv = tvs[id]
+
+      const box = document.createElement("div")
+
+      box.style.background="#000"
+      box.style.border="2px solid #333"
+      box.style.padding="5px"
+      box.style.width="320px"
+
+      box.innerHTML=`
+        <div style="color:white">TV ${id}</div>
+        <video width="300" muted autoplay></video>
+      `
+
+      const video = box.querySelector("video")
+
+      video.src="videos/"+tv.video
+      video.currentTime = tv.time
+
+      container.appendChild(box)
+
+    })
+
+  }catch(err){
+    console.log(err)
+  }
+
+}
+
+setInterval(updateMonitor,2000)// Update status TV ONLINE/OFFLINE tiap 3 detik
+
+async function updateTVStatus(){
+  try{
+    const res = await fetch('http://localhost:3000/tv-status');
+    const data = await res.json();
+    if(data.count>0){
+      tvStatus.innerText = `TV ONLINE (${data.count})`;
+    } else {
+      tvStatus.innerText = `TV OFFLINE (0)`;
+    }
+  }catch(err){
+    console.warn('Gagal update TV status', err);
+    tvStatus.innerText = `TV OFFLINE (0)`;
+  }
+
+  setTimeout(updateTVStatus,3000);
+}
+
+
+function openMonitor(){
+
+  const tvMonitor = document.getElementById('tvMonitor');
+
+  tvMonitor.style.display = 'block';
+
+  updateMonitor();
+  updateTVStatus();
+
+}
+
+// LOAD NOTES
+const notesArea = document.getElementById("notesArea")
+
+const savedNotes = localStorage.getItem("dashboardNotes")
+
+if(savedNotes){
+  notesArea.value = savedNotes
+}
+
+// AUTO SAVE
+notesArea.addEventListener("input",()=>{
+
+  localStorage.setItem("dashboardNotes", notesArea.value)
+
+})
+</script>
+
+
+<footer class="appFooter">
+  <div class="footerTitle">Clandys TV Management</div>
+  <div class="footerVersion">Version 1.0.0</div>
+  <div class="footerCopyright">© 2026 Richard</div>
+</footer>
+</body>
+</html>

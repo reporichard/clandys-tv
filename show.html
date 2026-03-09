@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>TV Player Show</title>
+
+<style>
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:black;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:hidden;
+}
+
+#videoContainer{
+  width:100%;
+  height:100%;
+  position:relative;
+}
+
+video{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:black;
+}
+
+#noVideo{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  color:white;
+  font-size:40px;
+  font-weight:bold;
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="videoContainer">
+  <video id="playerVideo" autoplay muted></video>
+  <div id="noVideo">Tidak ada Video</div>
+</div>
+
+<script>
+
+document.addEventListener("DOMContentLoaded",()=>{
+
+const playerVideo = document.getElementById("playerVideo")
+const noVideo = document.getElementById("noVideo")
+
+playerVideo.muted = true
+playerVideo.playsInline = true
+
+let playlist=[]
+let currentIndex=0
+
+// ambil playlist
+async function fetchPlaylist(){
+
+  try{
+
+    const res = await fetch("http://localhost:3000/playlist")
+    const data = await res.json()
+
+    const oldLength = playlist.length
+
+    playlist = data
+
+    // jika playlist kosong
+    if(playlist.length===0){
+
+      playerVideo.pause()
+      playerVideo.removeAttribute("src")
+      playerVideo.load()
+
+      playerVideo.style.display="none"
+      noVideo.style.display="block"
+
+      return
+    }
+
+    // jika sebelumnya kosong dan sekarang ada video
+    if(oldLength===0 && playlist.length>0){
+
+      noVideo.style.display="none"
+      playerVideo.style.display="block"
+
+      playVideo(0)
+
+      return
+    }
+
+  }catch(e){
+    console.log("Fetch playlist error",e)
+  }
+
+}
+
+// play video
+function playVideo(index){
+
+  if(playlist.length===0) return
+
+  currentIndex=index
+
+  const filename = playlist[index]
+  const url = "videos/"+filename
+
+  playerVideo.src=url
+
+  playerVideo.play().catch(()=>{})
+
+}
+
+// video selesai
+playerVideo.addEventListener("ended",()=>{
+
+  if(playlist.length===0) return
+
+  currentIndex++
+
+  if(currentIndex>=playlist.length){
+    currentIndex=0
+  }
+
+  playVideo(currentIndex)
+
+})
+
+
+// update status video ke server (monitor)
+setInterval(()=>{
+
+  if(playerVideo.src){
+
+    fetch("http://localhost:3000/now-playing",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+     body:JSON.stringify({
+  clientId: clientId,
+  video: playerVideo.src.split("/").pop(),
+  time: playerVideo.currentTime
+})
+    })
+
+  }
+
+},2000)
+
+
+// ping TV online
+const clientId = Math.random().toString(36).substring(2,9)
+
+function ping(){
+
+  fetch("http://localhost:3000/ping",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({clientId})
+  })
+
+}
+
+setInterval(ping,5000)
+ping()
+
+
+// cek playlist tiap 3 detik
+setInterval(fetchPlaylist,3000)
+
+// start awal
+fetchPlaylist()
+
+})
+
+</script>
+
+</body>
+</html>
