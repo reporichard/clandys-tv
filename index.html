@@ -132,7 +132,7 @@ button:hover{background:#0056b3;}
 
 <script>
 async function fetchPlaylist(){
-  const res = await fetch('http://localhost:3000/playlist');
+  const res = await fetch("/playlist");
   const data = await res.json();
   return data;
 }
@@ -164,7 +164,7 @@ async function confirmRemove(filename){
   if(!confirm(`Apakah kamu yakin ingin menghapus video '${filename}'?`)) return;
 
   try{
-    const res = await fetch(`http://localhost:3000/delete/${filename}`, { method:'DELETE' });
+    const res = await fetch("/delete/"+filename)
     const data = await res.json();
     alert(data.message); // beri feedback
     renderPlaylist();
@@ -241,7 +241,7 @@ async function updateMonitor(){
 
   try{
 
-    const res = await fetch('http://localhost:3000/tv-players')
+    const res = await fetch("/tv-players")
     const tvs = await res.json()
 
     const container = document.getElementById("tvMonitorContainer")
@@ -295,7 +295,7 @@ setInterval(updateMonitor,2000)// Update status TV ONLINE/OFFLINE tiap 3 detik
 
 async function updateTVStatus(){
   try{
-    const res = await fetch('http://localhost:3000/tv-status');
+    const res = await fetch("/tv-status");
     const data = await res.json();
     if(data.count>0){
       tvStatus.innerText = `TV ONLINE (${data.count})`;
@@ -346,4 +346,5 @@ notesArea.addEventListener("input",()=>{
   <div class="footerCopyright">© 2026 Richard</div>
 </footer>
 </body>
+
 </html>
